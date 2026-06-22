@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<!-- interactive -->
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>金流中間層 價差試算器（手機版）</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; }
+  body {
+    font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+    background: #eef1f4; color:#1f2933; line-height:1.5;
+    padding: 12px 12px 40px;
+  }
+  .wrap { max-width: 460px; margin:0 auto; }
+  h1 { font-size:18px; margin:2px 0 2px; }
+  .sub { color:#64748b; font-size:12px; margin:0 0 12px; }
+
+  .card { background:#fff; border-radius:14px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); margin-bottom:12px; }
+
+  /* 管道分段 */
+  .seg-ch { display:flex; gap:6px; margin-bottom:12px; }
+  .seg-ch .t {
+    flex:1; padding:12px 4px; border:2px solid #d6dde4; background:#fff; border-radius:11px;
+    font-size:14px; font-weight:700; color:#475569; text-align:center; cursor:pointer; transition:.12s;
+  }
+  .seg-ch .t.on { border-color:#0d9488; background:#0d9488; color:#fff; box-shadow:0 4px 12px rgba(13,148,136,.25); }
+
+  label.fld { display:block; font-size:12px; color:#64748b; margin-bottom:5px; }
+  .amt-row { display:flex; gap:10px; }
+  .amt-row .a { flex:2; } .amt-row .q { flex:1; }
+  input[type=number] {
+    width:100%; border:1.5px solid #d6dde4; border-radius:10px; padding:12px;
+    font-size:17px; font-family:inherit; background:#fff; color:#0f172a;
+  }
+  .amt-row .a input { font-size:28px; font-weight:800; color:#0d9488; padding:10px 12px; }
+  input[type=number]:focus { outline:none; border-color:#0d9488; }
+
+  /* 費率收合 */
+  .acc-head {
+    display:flex; align-items:center; justify-content:space-between; cursor:pointer;
+    padding:12px 14px; background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);
+    margin-bottom:12px;
+  }
+  .acc-head .ttl { font-size:13px; font-weight:700; }
+  .acc-head .smry { font-size:11px; color:#94a3b8; margin-top:3px; }
+  .acc-head .arr { font-size:14px; color:#94a3b8; transition:.2s; }
+  .acc-head.open .arr { transform:rotate(180deg); }
+  .acc-body { display:none; }
+  .acc-body.open { display:block; }
+
+  .role { display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px dashed #eef1f4; }
+  .role:last-child { border-bottom:none; }
+  .role .dot { width:11px; height:11px; border-radius:50%; flex:none; }
+  .role .nm { flex:1; font-size:14px; font-weight:600; }
+  .pi { width:66px; } .pi input { padding:8px; font-size:14px; text-align:right; }
+  .unit { font-size:11px; color:#94a3b8; width:12px; }
+  .locked input { background:#eef2f5; color:#64748b; }
+  .lockbadge { font-size:10px; color:#3b82f6; background:#e8f0fe; padding:1px 5px; border-radius:5px; }
+  .bluNote { font-size:11px; color:#94a3b8; margin-top:8px; }
+  .resetbtn { margin-top:10px; width:100%; padding:9px; border:1.5px solid #d6dde4; background:#fff; border-radius:9px; font-size:12px; color:#64748b; cursor:pointer; font-family:inherit; }
+  .resetbtn.arm { border-color:#dc2626; background:#fef2f2; color:#dc2626; font-weight:600; }
+
+  /* 試算大鈕 */
+  .calc-btn {
+    width:100%; padding:16px; border:none; border-radius:14px; cursor:pointer;
+    background:linear-gradient(135deg,#0d9488,#0f766e); color:#fff; font-size:18px; font-weight:800;
+    font-family:inherit; box-shadow:0 6px 16px rgba(13,148,136,.35); margin-bottom:12px;
+    letter-spacing:1px;
+  }
+  .calc-btn:active { transform:translateY(1px); }
+
+  /* 結果 */
+  .net-box { padding:18px; border-radius:14px; background:#ecfdf5; text-align:center; transition:.15s; }
+  .net-box.neg { background:#fef2f2; }
+  .net-box.flash { box-shadow:0 0 0 4px rgba(13,148,136,.35); }
+  .net-box .cap { font-size:13px; color:#047857; font-weight:700; }
+  .net-box.neg .cap { color:#b91c1c; }
+  .net-box .big { font-size:42px; font-weight:800; color:#059669; font-variant-numeric:tabular-nums; line-height:1.1; margin:4px 0; }
+  .net-box.neg .big { color:#dc2626; }
+  .net-box .mg { font-size:12px; color:#475569; }
+  .warn { display:none; margin-top:8px; font-size:13px; color:#b91c1c; font-weight:700; }
+  .net-box.neg .warn { display:block; }
+
+  .bar { display:flex; height:30px; border-radius:8px; overflow:hidden; margin:14px 0 6px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.05); }
+  .seg { display:flex; align-items:center; justify-content:center; color:#fff; font-size:10px; font-weight:700; overflow:hidden; white-space:nowrap; min-width:0; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:#475569; }
+  .legend span { display:flex; align-items:center; gap:4px; }
+  .legend .dot { width:9px; height:9px; border-radius:50%; }
+
+  .wf { margin-top:14px; }
+  .wf-row { display:flex; justify-content:space-between; padding:7px 0; font-size:13px; border-bottom:1px solid #f1f4f7; }
+  .wf-row .lbl { display:flex; align-items:center; gap:6px; }
+  .wf-row .dot { width:9px; height:9px; border-radius:50%; }
+  .wf-row .v { font-variant-numeric:tabular-nums; font-weight:600; }
+  .wf-row.minus .v { color:#b91c1c; }
+  .wf-row.gross { background:#f0fdfa; margin:3px -6px; padding:8px 6px; border-radius:7px; border:none; font-weight:700; }
+  .wf-row.gross .v { color:#0d9488; }
+  .totline { margin-top:10px; font-size:13px; color:#475569; text-align:center; }
+  .totline b { color:#0d9488; }
+
+  /* 範例卡片 */
+  .demo-h { font-size:13px; font-weight:700; margin:0 0 4px; }
+  .demo-s { font-size:11px; color:#94a3b8; margin:0 0 10px; }
+  .demo-card {
+    display:flex; align-items:center; gap:10px; padding:11px 12px; border:1.5px solid #e2e8f0;
+    border-radius:11px; margin-bottom:8px; cursor:pointer; transition:.12s;
+  }
+  .demo-card:active { background:#f0fdfa; border-color:#0d9488; }
+  .demo-card .pill { padding:3px 9px; border-radius:7px; color:#fff; font-size:12px; font-weight:700; flex:none; }
+  .demo-card .info { flex:1; }
+  .demo-card .amt { font-size:14px; font-weight:700; }
+  .demo-card .det { font-size:11px; color:#94a3b8; }
+  .demo-card .net { text-align:right; }
+  .demo-card .net .n { font-size:16px; font-weight:800; color:#059669; }
+  .demo-card .net .o { font-size:10px; color:#cbd5e1; text-decoration:line-through; }
+  .demo-note { font-size:12px; color:#475569; line-height:1.6; background:#fffbeb; padding:10px; border-radius:9px; margin-top:6px; }
+  .foot { font-size:11px; color:#94a3b8; text-align:center; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💱 中間層價差試算（手機版）</h1>
+  <p class="sub">藍新鎖定，其餘可調。填金額 → 按試算。</p>
+
+  <!-- 管道 -->
+  <div class="seg-ch" id="segCh">
+    <div class="t" data-ch="credit">信用卡</div>
+    <div class="t" data-ch="atm">ATM</div>
+    <div class="t" data-ch="cvs">超商</div>
+  </div>
+
+  <!-- 金額 -->
+  <div class="card">
+    <div class="amt-row">
+      <div class="a">
+        <label class="fld">代收金額（元）</label>
+        <input type="number" id="amt" inputmode="numeric" min="0" step="1">
+      </div>
+      <div class="q">
+        <label class="fld">筆數</label>
+        <input type="number" id="qty" inputmode="numeric" min="1" step="1" value="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- 費率收合 -->
+  <div class="acc-head" id="accHead">
+    <div>
+      <div class="ttl">⚙️ 費率設定<span class="lockbadge" style="margin-left:6px;">藍新🔒</span></div>
+      <div class="smry" id="accSmry">—</div>
+    </div>
+    <div class="arr">▼</div>
+  </div>
+  <div class="acc-body" id="accBody">
+    <div class="card" style="margin-top:0;">
+      <div class="role">
+        <span class="dot" style="background:#0f172a"></span><span class="nm">① 對商戶收</span>
+        <span class="pi"><input type="number" id="inc_pct" step="0.1"></span><span class="unit">%</span>
+        <span class="pi"><input type="number" id="inc_fix" step="1"></span><span class="unit">元</span>
+      </div>
+      <div class="role locked">
+        <span class="dot" style="background:#3b82f6"></span><span class="nm">② 藍新 <span class="lockbadge">🔒</span></span>
+        <span class="pi"><input type="number" id="blu_pct" disabled></span><span class="unit">%</span>
+        <span class="pi"><input type="number" id="blu_fix" disabled></span><span class="unit">元</span>
+      </div>
+      <div class="role">
+        <span class="dot" style="background:#8b5cf6"></span><span class="nm">系統費</span>
+        <span class="pi"><input type="number" id="sys_pct" step="0.1"></span><span class="unit">%</span>
+        <span class="pi"><input type="number" id="sys_fix" step="1"></span><span class="unit">元</span>
+      </div>
+      <div class="role">
+        <span class="dot" style="background:#f59e0b"></span><span class="nm">線下通道</span>
+        <span class="pi"><input type="number" id="off_pct" step="0.1"></span><span class="unit">%</span>
+        <span class="pi"><input type="number" id="off_fix" step="1"></span><span class="unit">元</span>
+      </div>
+      <div class="role">
+        <span class="dot" style="background:#ec4899"></span><span class="nm">中人</span>
+        <span class="pi"><input type="number" id="agt_pct" step="0.1"></span><span class="unit">%</span>
+        <span class="pi"><input type="number" id="agt_fix" step="1"></span><span class="unit">元</span>
+      </div>
+      <div class="bluNote" id="bluNote"></div>
+      <button class="resetbtn" id="resetBtn">↺ 還原這個管道的預設費率</button>
+    </div>
+  </div>
+
+  <!-- 試算鈕 -->
+  <button class="calc-btn" id="calcBtn">💰 試　算</button>
+
+  <!-- 結果 -->
+  <div class="card" id="resultCard">
+    <div class="net-box" id="netBox">
+      <div class="cap">你的淨差額（單筆）</div>
+      <div class="big" id="r_net">—</div>
+      <div class="mg" id="r_margin">—</div>
+      <div class="warn">⚠️ 差額是負的！這筆你倒貼了。</div>
+    </div>
+
+    <div class="bar" id="bar"></div>
+    <div class="legend" id="legend"></div>
+
+    <div class="wf">
+      <div class="wf-row"><span class="lbl"><span class="dot" style="background:#0f172a"></span>① 收入</span><span class="v" id="r_inc">—</span></div>
+      <div class="wf-row minus"><span class="lbl"><span class="dot" style="background:#3b82f6"></span>− 藍新</span><span class="v" id="r_blu">—</span></div>
+      <div class="wf-row gross"><span class="lbl">③ 毛差額</span><span class="v" id="r_gross">—</span></div>
+      <div class="wf-row minus"><span class="lbl"><span class="dot" style="background:#8b5cf6"></span>− 系統費</span><span class="v" id="r_sys">—</span></div>
+      <div class="wf-row minus"><span class="lbl"><span class="dot" style="background:#f59e0b"></span>− 線下通道</span><span class="v" id="r_off">—</span></div>
+      <div class="wf-row minus"><span class="lbl"><span class="dot" style="background:#ec4899"></span>− 中人</span><span class="v" id="r_agt">—</span></div>
+    </div>
+    <div class="totline" id="totline"></div>
+  </div>
+
+  <!-- 範例 -->
+  <div class="card">
+    <p class="demo-h">📋 範例（點卡片帶入試算）</p>
+    <p class="demo-s">三種管道各一筆示範金額，點一下即可載入</p>
+    <div id="demoList"></div>
+    <p class="demo-note">綠色數字＝該筆的淨差額（收入扣掉藍新、系統費、線下、中人之後剩下的）。費率可在上方「費率設定」自由調整。</p>
+  </div>
+
+  <p class="foot">收入 ＝ 藍新＋系統費＋線下＋中人＋你的差額。資料只存本機。</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var DEFAULTS = {
+    credit: { label:'信用卡', blu:{type:'pct',     pct:2.8, fix:0,  cap:0  }, inc:{pct:4, fix:35}, sys:{pct:0.2, fix:0}, off:{pct:0.3, fix:5}, agt:{pct:0.3, fix:0} },
+    atm:    { label:'ATM',    blu:{type:'pct_cap', pct:1,   fix:0,  cap:500}, inc:{pct:5, fix:35}, sys:{pct:0.2, fix:0}, off:{pct:0.3, fix:5}, agt:{pct:0.3, fix:0} },
+    cvs:    { label:'超商',    blu:{type:'fixed',   pct:0,   fix:28, cap:0  }, inc:{pct:5, fix:35}, sys:{pct:0.2, fix:0}, off:{pct:0.5, fix:5}, agt:{pct:0.3, fix:0} }
+  };
+  var KEY = 'liushui_bridge_calc_m1';
+  var clone = function(o){ return JSON.parse(JSON.stringify(o)); };
+  var $ = function(id){ return document.getElementById(id); };
+
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){}
+  var state = { ch: saved.ch||'credit', amt:(saved.amt!=null?saved.amt:1000), qty:(saved.qty!=null?saved.qty:1), p: saved.p||{} };
+  ['credit','atm','cvs'].forEach(function(c){
+    if(!state.p[c]) state.p[c] = clone({ inc:DEFAULTS[c].inc, sys:DEFAULTS[c].sys, off:DEFAULTS[c].off, agt:DEFAULTS[c].agt });
+  });
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+
+  function bluCost(blu, amt){
+    if(blu.type==='fixed') return blu.fix;
+    if(blu.type==='pct_cap') return Math.min(amt*blu.pct/100, blu.cap);
+    return amt*blu.pct/100;
+  }
+  function f2(n){ return Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+  function compute(c, amt){
+    var P=state.p[c], D=DEFAULTS[c];
+    var inc=amt*P.inc.pct/100+Number(P.inc.fix||0);
+    var blu=bluCost(D.blu,amt);
+    var sys=amt*P.sys.pct/100+Number(P.sys.fix||0);
+    var off=amt*P.off.pct/100+Number(P.off.fix||0);
+    var agt=amt*P.agt.pct/100+Number(P.agt.fix||0);
+    return { inc:inc, blu:blu, gross:inc-blu, sys:sys, off:off, agt:agt, net:inc-blu-sys-off-agt };
+  }
+
+  function render(){
+    var c=state.ch, D=DEFAULTS[c];
+    var amt=Number(state.amt)||0, qty=Math.max(1,Number(state.qty)||1);
+
+    [].forEach.call(document.querySelectorAll('.seg-ch .t'), function(t){ t.classList.toggle('on', t.getAttribute('data-ch')===c); });
+
+    $('blu_pct').value = D.blu.type==='fixed' ? '' : D.blu.pct;
+    $('blu_fix').value = D.blu.type==='fixed' ? D.blu.fix : '';
+    var note='';
+    if(D.blu.type==='pct_cap') note='🔒 藍新 '+D.blu.pct+'%，單筆上限 '+D.blu.cap+' 元';
+    else if(D.blu.type==='fixed') note='🔒 藍新 '+D.blu.fix+' 元／筆（固定）';
+    else note='🔒 藍新 '+D.blu.pct+'%（無上限）';
+    $('bluNote').textContent=note;
+
+    var P=state.p[c];
+    $('accSmry').textContent = '收 '+P.inc.pct+'%+'+P.inc.fix+' ｜ 藍新 '+(D.blu.type==='fixed'?D.blu.fix+'元':D.blu.pct+'%')+' ｜ 系統 '+P.sys.pct+'% ｜ 線下 '+P.off.pct+'%+'+P.off.fix+' ｜ 中人 '+P.agt.pct+'%';
+
+    var r=compute(c, amt);
+    $('r_inc').textContent=f2(r.inc);
+    $('r_blu').textContent='−'+f2(r.blu);
+    $('r_gross').textContent=f2(r.gross);
+    $('r_sys').textContent='−'+f2(r.sys);
+    $('r_off').textContent='−'+f2(r.off);
+    $('r_agt').textContent='−'+f2(r.agt);
+    $('r_net').textContent=(r.net<0?'−':'')+f2(r.net);
+    $('r_margin').textContent='淨利率 '+(amt>0?(r.net/amt*100).toFixed(2):'0')+'%　｜　拿走收入 '+(r.inc>0?(r.net/r.inc*100).toFixed(1):'0')+'%';
+    $('netBox').classList.toggle('neg', r.net<0);
+
+    var parts=[
+      {nm:'藍新',v:r.blu,col:'#3b82f6'},{nm:'系統',v:r.sys,col:'#8b5cf6'},
+      {nm:'線下',v:r.off,col:'#f59e0b'},{nm:'中人',v:r.agt,col:'#ec4899'},
+      {nm:'你',v:r.net,col:r.net<0?'#dc2626':'#10b981'}
+    ];
+    var base=parts.reduce(function(s,p){return s+Math.max(0,p.v);},0)||1, bar='', leg='';
+    parts.forEach(function(p){
+      var w=Math.max(0,p.v)/base*100;
+      bar+='<div class="seg" style="width:'+w+'%;background:'+p.col+'">'+(w>11?p.nm:'')+'</div>';
+      leg+='<span><span class="dot" style="background:'+p.col+'"></span>'+p.nm+' '+f2(p.v)+'</span>';
+    });
+    $('bar').innerHTML=bar; $('legend').innerHTML=leg;
+
+    $('totline').innerHTML = qty>1 ? ('× '+qty+' 筆　淨差額總計 <b>'+f2(r.net*qty)+' 元</b>') : '';
+
+    // 回填輸入
+    $('amt').value=state.amt; $('qty').value=state.qty;
+    $('inc_pct').value=P.inc.pct; $('inc_fix').value=P.inc.fix;
+    $('sys_pct').value=P.sys.pct; $('sys_fix').value=P.sys.fix;
+    $('off_pct').value=P.off.pct; $('off_fix').value=P.off.fix;
+    $('agt_pct').value=P.agt.pct; $('agt_fix').value=P.agt.fix;
+    save();
+  }
+
+  function bind(id, setter){ $(id).addEventListener('input', function(){ setter(this.value===''?0:Number(this.value)); render(); }); }
+  bind('amt',function(v){state.amt=v;}); bind('qty',function(v){state.qty=v;});
+  bind('inc_pct',function(v){state.p[state.ch].inc.pct=v;}); bind('inc_fix',function(v){state.p[state.ch].inc.fix=v;});
+  bind('sys_pct',function(v){state.p[state.ch].sys.pct=v;}); bind('sys_fix',function(v){state.p[state.ch].sys.fix=v;});
+  bind('off_pct',function(v){state.p[state.ch].off.pct=v;}); bind('off_fix',function(v){state.p[state.ch].off.fix=v;});
+  bind('agt_pct',function(v){state.p[state.ch].agt.pct=v;}); bind('agt_fix',function(v){state.p[state.ch].agt.fix=v;});
+
+  [].forEach.call(document.querySelectorAll('.seg-ch .t'), function(t){
+    t.addEventListener('click', function(){ state.ch=t.getAttribute('data-ch'); render(); });
+  });
+
+  // 收合
+  $('accHead').addEventListener('click', function(){
+    this.classList.toggle('open'); $('accBody').classList.toggle('open');
+  });
+
+  // 試算鈕：收鍵盤＋捲到結果＋閃一下
+  $('calcBtn').addEventListener('click', function(){
+    if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    render();
+    var box=$('netBox'); box.classList.add('flash');
+    setTimeout(function(){ box.classList.remove('flash'); }, 600);
+    $('resultCard').scrollIntoView({behavior:'smooth', block:'center'});
+  });
+
+  // 還原（雙擊確認）
+  var armed=false, armT=null;
+  $('resetBtn').addEventListener('click', function(){
+    var b=this;
+    if(!armed){ armed=true; b.classList.add('arm'); b.textContent='⚠️ 再按一次＝清掉自訂費率'; armT=setTimeout(function(){armed=false;b.classList.remove('arm');b.textContent='↺ 還原這個管道的預設費率';},3000); return; }
+    clearTimeout(armT); armed=false; b.classList.remove('arm'); b.textContent='↺ 還原這個管道的預設費率';
+    var D=DEFAULTS[state.ch]; state.p[state.ch]=clone({inc:D.inc,sys:D.sys,off:D.off,agt:D.agt}); render();
+  });
+
+  // 範例卡片
+  var DEMO=[ {ch:'credit',amt:1000,col:'#3b82f6'}, {ch:'atm',amt:5000,col:'#8b5cf6'}, {ch:'cvs',amt:30000,col:'#f59e0b'} ];
+  function renderDemo(){
+    var html='';
+    DEMO.forEach(function(d){
+      var D=DEFAULTS[d.ch];
+      var inc=d.amt*D.inc.pct/100+D.inc.fix, blu=bluCost(D.blu,d.amt);
+      var sys=d.amt*D.sys.pct/100+D.sys.fix, off=d.amt*D.off.pct/100+D.off.fix, agt=d.amt*D.agt.pct/100+D.agt.fix;
+      var net=inc-blu-sys-off-agt;
+      html+='<div class="demo-card" data-ch="'+d.ch+'" data-amt="'+d.amt+'">'+
+        '<span class="pill" style="background:'+d.col+'">'+D.label+'</span>'+
+        '<div class="info"><div class="amt">'+d.amt.toLocaleString()+' 元</div><div class="det">收 '+f2(inc)+' − 藍新 '+f2(blu)+'…</div></div>'+
+        '<div class="net"><div class="n">'+f2(net)+'</div></div>'+
+      '</div>';
+    });
+    $('demoList').innerHTML=html;
+    [].forEach.call(document.querySelectorAll('.demo-card'), function(card){
+      card.addEventListener('click', function(){
+        var ch=card.getAttribute('data-ch');
+        state.ch=ch; state.amt=Number(card.getAttribute('data-amt')); state.qty=1;
+        var D=DEFAULTS[ch]; state.p[ch]=clone({inc:D.inc,sys:D.sys,off:D.off,agt:D.agt});
+        render();
+        var box=$('netBox'); box.classList.add('flash'); setTimeout(function(){box.classList.remove('flash');},600);
+        $('resultCard').scrollIntoView({behavior:'smooth', block:'center'});
+      });
+    });
+  }
+
+  renderDemo();
+  render();
+})();
+</script>
+</body>
+</html>
